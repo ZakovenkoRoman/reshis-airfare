@@ -7,9 +7,11 @@ const format = new Intl.NumberFormat("ru-RU");
 let currentForecast;
 
 async function api(path, options) {
-  const response = await fetch(new URL(path, document.baseURI), options);
-  const json = await response.json();
-  if (!response.ok) throw new Error(json.error || "Сервис временно недоступен.");
+  const unavailable = "Сервис временно недоступен. Попробуйте ещё раз.";
+  const response = await fetch(new URL(path, document.baseURI), options)
+    .catch(() => { throw new Error(unavailable); });
+  const json = await response.json().catch(() => { throw new Error(unavailable); });
+  if (!response.ok) throw new Error(json.error || unavailable);
   return json;
 }
 
@@ -23,16 +25,19 @@ function drawChart() {
   const { scenarios, seats } = currentForecast;
   const { width, height } = canvas.getBoundingClientRect();
   const scale = window.devicePixelRatio || 1;
-  canvas.width = Math.round(width * scale);
-  canvas.height = Math.round(height * scale);
+  const pixelWidth = Math.round(width * scale);
+  const pixelHeight = Math.round(height * scale);
+  if (canvas.width !== pixelWidth) canvas.width = pixelWidth;
+  if (canvas.height !== pixelHeight) canvas.height = pixelHeight;
   const ctx = canvas.getContext("2d");
-  ctx.scale(scale, scale);
-  ctx.font = "12px system-ui";
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  ctx.clearRect(0, 0, width, height);
+  ctx.font = "12px sans-serif";
   ctx.textBaseline = "middle";
 
   const left = 56;
   const right = width - 19;
-  const bottom = height - 28;
+  const bottom = height - 43;
   const top = 16;
   const step = Math.max(50, Math.ceil(Math.max(seats, ...scenarios.map(s => s.demand)) / 250) * 50);
   const x = i => left + i * (right - left) / 8;
@@ -60,9 +65,15 @@ function drawChart() {
   ctx.setLineDash([]);
 
   ctx.strokeStyle = "#287357";
-  ctx.beginPath();
-  scenarios.forEach((item, i) => ctx.lineTo(x(i), y(item.demand)));
-  ctx.stroke();
+  const line = new Path2D();
+  scenarios.forEach((item, i) => line.lineTo(x(i), y(item.demand)));
+  const area = new Path2D(line);
+  area.lineTo(right, bottom);
+  area.lineTo(left, bottom);
+  area.closePath();
+  ctx.fillStyle = "#28735712";
+  ctx.fill(area);
+  ctx.stroke(line);
   ctx.textAlign = "center";
   scenarios.forEach((item, i) => {
     ctx.fillStyle = "#287357";
@@ -74,6 +85,7 @@ function drawChart() {
       ctx.fillText(format.format(item.quantile), x(i), bottom + 17);
     }
   });
+  ctx.fillText("Квантиль", (left + right) / 2, bottom + 35);
 }
 
 function renderForecast(data) {
@@ -83,6 +95,7 @@ function renderForecast(data) {
   for (const key of ["seats", "sales", "free"]) byId(key).textContent = format.format(data[key]);
   byId("chart-price").textContent = format.format(data.price) + " ₽";
   byId("demand-summary").textContent = "Медианный спрос: " + format.format(data.demand) + " чел.";
+  byId("capacity-legend").textContent = "Вместимость: " + format.format(data.seats) + " мест";
   byId("scenarios").replaceChildren(...data.scenarios.map(scenario => {
     const row = document.createElement("tr");
     for (const key of ["quantile", "demand", "sales"]) {
@@ -93,18 +106,22 @@ function renderForecast(data) {
   drawChart();
 }
 
-async function loadForecast() {
-  const button = forecastForm.querySelector('[type="submit"]');
+async function loadForecast(preview = false) {
+  const button = byId("forecast-submit");
+  const label = byId("forecast-submit-label");
   button.disabled = true;
+  label.textContent = "Рассчитываем…";
   results.setAttribute("aria-busy", "true");
   showError(forecastError);
   try {
     const query = new URLSearchParams(new FormData(forecastForm));
+    if (preview) query.set("preview", "1");
     renderForecast(await api("api/forecast?" + query));
   } catch (error) {
     showError(forecastError, error);
   } finally {
     button.disabled = false;
+    label.textContent = "Рассчитать прогноз";
     results.setAttribute("aria-busy", "false");
   }
 }
@@ -117,7 +134,7 @@ byId("base-price").addEventListener("click", () => {
   forecastForm.elements.price.value = forecastForm.elements.route.selectedOptions[0].dataset.price;
 });
 new ResizeObserver(drawChart).observe(canvas);
-loadForecast();
+loadForecast(true);
 
 const dialog = byId("auth");
 const authForm = byId("auth-form");
@@ -185,4 +202,4 @@ authForm.addEventListener("submit", async event => {
     authSubmit.disabled = false;
   }
 });
-api("api/session").then(renderSession).catch(() => {});
+api("api/session").then(renderSession).catch(error => showError(byId("account-error"), error));

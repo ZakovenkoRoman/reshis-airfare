@@ -43,7 +43,7 @@
         </label>
         <label>Цена билета, ₽<input name="price" type="number" min="1" max="1000000" step="1" value="9000" required></label>
         <button class="link" id="base-price" type="button">Подставить базовую цену</button>
-        <button class="primary" type="submit">Рассчитать прогноз <span aria-hidden="true">→</span></button>
+        <button id="forecast-submit" class="primary" type="submit"><span id="forecast-submit-label">Рассчитать прогноз</span> <span aria-hidden="true">→</span></button>
         <p class="error" id="forecast-error" role="alert" hidden></p>
       </form>
       <section class="results" aria-label="Результат прогноза" aria-live="polite" aria-busy="true">
@@ -64,7 +64,7 @@
           <canvas id="demand-chart" role="img" aria-label="Квантили прогноза спроса"></canvas>
           <div class="legend">
             <span><i class="dot"></i> Спрос по квантилям</span>
-            <span><i class="dash"></i> Вместимость</span>
+            <span><i class="dash"></i> <b id="capacity-legend">Вместимость</b></span>
           </div>
           <details>
             <summary>Значения по сценариям</summary>
@@ -74,10 +74,10 @@
       </section>
     </div>
   </main>
-  <dialog id="auth">
+  <dialog id="auth" aria-labelledby="auth-title">
     <form id="auth-form">
       <div class="dialog-head"><h2 id="auth-title">Вход</h2><button type="button" id="auth-close" class="secondary" aria-label="Закрыть">×</button></div>
-      <label>Логин<input name="login" autocomplete="username" minlength="3" maxlength="32" pattern="[a-zA-Z0-9_.\-]{3,32}" required></label>
+      <label>Логин<input name="login" autocomplete="username" minlength="3" maxlength="32" pattern="[a-zA-Z0-9_.\-]{3,32}" title="От 3 до 32 символов: латиница, цифры, точка, дефис или подчёркивание" required></label>
       <label>Пароль<input name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required></label>
       <p id="auth-error" class="error" role="alert" hidden></p>
       <button id="auth-submit" class="primary" type="submit">Войти</button>

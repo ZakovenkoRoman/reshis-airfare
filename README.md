@@ -19,6 +19,10 @@ Flask читает `data/my_forecast.csv` из ML-блокнота и `data/rout
 
 Пример: `GET /api/forecast?route=MOW-AER&date=2026-06-12&price=9000`.
 
+## Журнал действий
+
+`python -m flask --app app activity` выводит 100 последних событий с временем UTC. На Timeweb запускайте команду из корня проекта через `.venv/bin/python`. Журнал хранит до 10 000 событий в локальной SQLite. В нём есть открытия страницы, ручные расчёты (маршрут, дата, цена), успешные регистрации, входы и выходы. Один человек может открыть страницу несколько раз.
+
 ## Timeweb
 
 Используется [виртуальный хостинг Flask](https://timeweb.com/ru/docs/virtualnyj-hosting/prilozheniya-i-frejmvorki/flask/) с Python 3.10 и WSGI. Корень сайта должен указывать на `public_html`. Остальные файлы проекта лежат на один уровень выше.

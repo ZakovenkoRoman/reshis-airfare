@@ -3,6 +3,7 @@ import re
 import secrets
 import sqlite3
 from contextlib import closing
+from datetime import datetime, timezone
 from pathlib import Path
 from time import time
 
@@ -32,6 +33,12 @@ def create_app():
                 name TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS activity (
+                id INTEGER PRIMARY KEY,
+                created INTEGER NOT NULL,
+                action TEXT NOT NULL,
+                details TEXT NOT NULL
+            );
         """)
         db.execute(
             "INSERT OR IGNORE INTO settings VALUES ('session_key', ?)",
@@ -49,6 +56,27 @@ def create_app():
     )
     dummy_password_hash = generate_password_hash(secrets.token_hex(16))
 
+    def record(action, details=""):
+        try:
+            with closing(sqlite3.connect(database, timeout=1)) as db, db:
+                db.execute(
+                    "INSERT INTO activity (created, action, details) VALUES (?, ?, ?)",
+                    (int(time()), action, details),
+                )
+                db.execute("DELETE FROM activity WHERE id <= last_insert_rowid() - 10000")
+        except sqlite3.Error:
+            app.logger.exception("Не удалось записать действие")
+
+    @app.cli.command("activity")
+    def show_activity():
+        with closing(sqlite3.connect(database)) as db:
+            rows = db.execute(
+                "SELECT created, action, details FROM activity ORDER BY id DESC LIMIT 100"
+            ).fetchall()
+        for created, action, details in rows:
+            date = datetime.fromtimestamp(created, timezone.utc).isoformat()
+            print(f"{date}\t{action}\t{details}")
+
     @app.after_request
     def security_headers(response):
         response.headers["X-Content-Type-Options"] = "nosniff"
@@ -62,6 +90,7 @@ def create_app():
 
     @app.get("/")
     def index():
+        record("visit")
         return render_template("index.html", routes=ROUTES, dates=DATES)
 
     @app.get("/api/forecast")
@@ -70,10 +99,15 @@ def create_app():
             price = float(request.args.get("price", ""))
         except ValueError:
             return jsonify(error="Введите цену билета."), 400
+        route = request.args.get("route")
+        date = request.args.get("date")
         try:
-            return jsonify(calculate(request.args.get("route"), request.args.get("date"), price))
+            result = calculate(route, date, price)
         except ValueError as error:
             return jsonify(error=str(error)), 400
+        if request.args.get("preview") != "1":
+            record("forecast", f"{route} {date} {price:g}")
+        return jsonify(result)
 
     @app.get("/api/session")
     def current_session():
@@ -88,6 +122,8 @@ def create_app():
         if not token or not secrets.compare_digest(token.encode("ascii"), supplied):
             return jsonify(error="Обновите страницу и попробуйте ещё раз."), 403
         if action == "logout":
+            if session.get("login"):
+                record("logout")
             session.clear()
             return current_session()
         if action not in {"login", "register"}:
@@ -128,6 +164,7 @@ def create_app():
                     return jsonify(error="Неверный логин или пароль."), 401
         session.clear()
         session["login"] = login
+        record(action)
         return current_session()
 
     return app
