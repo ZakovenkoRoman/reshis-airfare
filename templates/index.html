@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Решись Авиа · Прогноз продаж</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <script defer src="{{ url_for('static', filename='app.js') }}"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="wrap bar">
+      <a class="brand" href="./"><span class="mark" aria-hidden="true">↗</span> Решись Авиа</a>
+      <div class="account">
+        <span id="account-name"></span>
+        <button id="account-button" class="secondary" type="button">Войти</button>
+      </div>
+    </div>
+  </header>
+  <main class="wrap">
+    <p class="error" id="account-error" role="alert" hidden></p>
+    <div class="intro">
+      <h1>Прогноз продаж</h1>
+      <p>Оцените спрос на рейс при выбранной цене билета.</p>
+    </div>
+    <div class="layout">
+      <form id="forecast-form" class="card filters">
+        <h2>Параметры рейса</h2>
+        <label>Откуда<select name="origin" required><option value="MOW">Москва</option></select></label>
+        <label>Куда
+          <select name="route" required>
+          {% for code, route in routes.items() %}
+            <option value="{{ code }}" data-price="{{ route.base_price }}">{{ route.name.split(' — ')[1] }}</option>
+          {% endfor %}
+          </select>
+        </label>
+        <label>Дата вылета
+          <select name="date" required>
+          {% for date in dates %}
+            <option value="{{ date }}"{% if date == '2026-06-12' %} selected{% endif %}>{{ date[8:] }}.{{ date[5:7] }}.{{ date[:4] }}</option>
+          {% endfor %}
+          </select>
+        </label>
+        <label>Цена билета, ₽<input name="price" type="number" min="1" max="1000000" step="1" value="9000" required></label>
+        <button class="link" id="base-price" type="button">Подставить базовую цену</button>
+        <button class="primary" type="submit">Рассчитать прогноз <span aria-hidden="true">→</span></button>
+        <p class="error" id="forecast-error" role="alert" hidden></p>
+      </form>
+      <section class="results" aria-label="Результат прогноза" aria-live="polite" aria-busy="true">
+        <div class="result-head">
+          <h2 id="flight">Прогноз рейса</h2>
+          <span id="flight-date"></span>
+        </div>
+        <div class="metrics">
+          <div class="card metric"><span>Мест всего</span><strong id="seats">—</strong></div>
+          <div class="card metric highlight"><span>Купят билеты</span><strong id="sales">—</strong></div>
+          <div class="card metric"><span>Останется мест</span><strong id="free">—</strong></div>
+        </div>
+        <div class="card chart">
+          <div class="chart-head">
+            <div><h2>Распределение спроса</h2><p id="demand-summary"></p></div>
+            <span id="chart-price"></span>
+          </div>
+          <canvas id="demand-chart" role="img" aria-label="Квантили прогноза спроса"></canvas>
+          <div class="legend">
+            <span><i class="dot"></i> Спрос по квантилям</span>
+            <span><i class="dash"></i> Вместимость</span>
+          </div>
+          <details>
+            <summary>Значения по сценариям</summary>
+            <table><thead><tr><th scope="col">Квантиль</th><th scope="col">Спрос</th><th scope="col">Продажи</th></tr></thead><tbody id="scenarios"></tbody></table>
+          </details>
+        </div>
+      </section>
+    </div>
+  </main>
+  <dialog id="auth">
+    <form id="auth-form">
+      <div class="dialog-head"><h2 id="auth-title">Вход</h2><button type="button" id="auth-close" class="secondary" aria-label="Закрыть">×</button></div>
+      <label>Логин<input name="login" autocomplete="username" minlength="3" maxlength="32" pattern="[a-zA-Z0-9_.\-]{3,32}" required></label>
+      <label>Пароль<input name="password" type="password" autocomplete="current-password" minlength="8" maxlength="128" required></label>
+      <p id="auth-error" class="error" role="alert" hidden></p>
+      <button id="auth-submit" class="primary" type="submit">Войти</button>
+      <button id="auth-toggle" class="link" type="button">Создать аккаунт</button>
+    </form>
+  </dialog>
+</body>
+</html>
