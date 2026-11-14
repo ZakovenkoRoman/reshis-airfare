@@ -12,3 +12,18 @@ python -m flask --app app run
 ```
 
 Откройте [localhost:5000](http://localhost:5000).
+
+## Docker
+
+```sh
+docker build -t reshis-airfare .
+docker run -d --name reshis-airfare --restart unless-stopped \
+  -p 127.0.0.1:8000:8000 \
+  -v reshis-airfare-data:/app/instance \
+  reshis-airfare
+```
+
+Том `reshis-airfare-data` хранит аккаунты и журнал при замене контейнера.
+Для публичного запуска направьте HTTPS-прокси на `127.0.0.1:8000` и добавьте
+`-e AIRFARE_HTTPS=1` в команду запуска. Журнал доступен через
+`docker exec reshis-airfare python -m flask --app app activity`.
